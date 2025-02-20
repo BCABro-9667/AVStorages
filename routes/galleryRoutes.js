@@ -5,6 +5,9 @@ const fs = require("fs");
 const Gallery = require("../models/Gallery");
 const router = express.Router();
 
+// ✅ Serve uploaded images correctly
+router.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Ensure 'uploads/' folder exists
 const uploadDir = path.join(__dirname, "../uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -23,9 +26,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// ✅ Serve Uploaded Images
-router.use("/uploads", express.static(uploadDir));
-
 // ✅ Upload a New Image
 router.post("/", upload.single("image"), async (req, res) => {
   const { userId, title } = req.body;
@@ -33,7 +33,8 @@ router.post("/", upload.single("image"), async (req, res) => {
     return res.status(400).json({ msg: "No file uploaded" });
   }
 
-  const imageUrl = `/uploads/${req.file.filename}`; // Store relative path
+  // ✅ Store full image URL instead of relative path
+  const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
 
   try {
     const image = new Gallery({ userId, title, imageUrl });
@@ -43,5 +44,16 @@ router.post("/", upload.single("image"), async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+// ✅ Get all images for a user
+router.get("/:userId", async (req, res) => {
+  try {
+    const images = await Gallery.find({ userId: req.params.userId });
+    res.json(images);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 module.exports = router;
